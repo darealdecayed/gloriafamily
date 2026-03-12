@@ -293,7 +293,7 @@ const app = express();
 const detector = new ProxyDetector();
 const PORT = process.env.PORT || 3000;
 
-app.get('/v1/dusk/check/url=:domain', async (req: Request, res: Response) => {
+app.get('/v1/gloria/check/url=:domain', async (req: Request, res: Response) => {
   try {
     let domain = req.params.domain.replace(/"/g, '');
     
@@ -312,8 +312,10 @@ app.get('/v1/dusk/check/url=:domain', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 export default app;

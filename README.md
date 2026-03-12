@@ -1,4 +1,4 @@
-# Dusk Proxy Detection API
+# Gloria Proxy Detection API
 
 A Node.js API using TypeScript and Express that analyzes whether a requested domain is being accessed through an interception proxy or MITM proxy.
 
@@ -22,15 +22,42 @@ npm start
 
 The server will start on port 3000 by default.
 
+## Deploying To Vercel
+
+This repo is configured to deploy as a Vercel Node.js serverless function.
+
+1. Install Vercel CLI:
+```bash
+npm i -g vercel
+```
+2. Log in:
+```bash
+vercel login
+```
+3. Deploy from the project root:
+```bash
+vercel
+```
+4. For production deployment:
+```bash
+vercel --prod
+```
+
+The endpoint path stays the same after deployment:
+
+```bash
+GET /v1/gloria/check/url="example.com"
+```
+
 ## API Endpoint
 
-### GET /v1/dusk/check/url="<domain>"
+### GET /v1/gloria/check/url="<domain>"
 
 Analyzes a domain for proxy interception using behavioral and statistical analysis.
 
 #### Example Request
 ```
-GET /v1/dusk/check/url="example.com"
+GET /v1/gloria/check/url="example.com"
 ```
 
 #### Response Format

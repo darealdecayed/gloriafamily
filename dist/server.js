@@ -264,7 +264,7 @@ class ProxyDetector {
 const app = (0, express_1.default)();
 const detector = new ProxyDetector();
 const PORT = process.env.PORT || 3000;
-app.get('/v1/dusk/check/url=:domain', async (req, res) => {
+app.get('/v1/gloria/check/url=:domain', async (req, res) => {
     try {
         let domain = req.params.domain.replace(/"/g, '');
         if (domain.includes('/')) {
@@ -280,8 +280,10 @@ app.get('/v1/dusk/check/url=:domain', async (req, res) => {
         res.status(500).json({ error: 'Analysis failed' });
     }
 });
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
 exports.default = app;
 //# sourceMappingURL=server.js.map
