@@ -138,81 +138,76 @@ export class ProxyDetector {
       
       const allText = title + ' ' + metaDescription + ' ' + metaKeywords + ' ' + body
       
-      const gamePatterns = [
-        /\b(game|games|gaming|play|player|arcade|puzzle|action|adventure|strategy|rpg|mmo|fps|multiplayer)\b/gi,
-        /\b(singleplayer|campaign|level|score|highscore|achievement|leaderboard|tournament|competition|match|round|stage)\b/gi,
-        /\b(unblocked|blocked|bypass|proxy|tunnel|school|work|fun|entertainment|recreation|pastime|diversion)\b/gi,
-        /\b(flash|html5|canvas|webgl|unity|construct|phaser|three\.js|babylonjs|playcanvas)\b/gi
-      ]
-      
-      let patternMatches = 0
-      gamePatterns.forEach(pattern => {
-        const matches = allText.match(pattern)
-        if (matches) {
-          patternMatches += matches.length
-        }
-      })
-      
       const interactiveElements = (body.match(/<iframe|<embed|<object|<canvas|<game|<play/gi) || []).length
       const scriptCount = (body.match(/<script/gi) || []).length
       const linkCount = (body.match(/<a\s+href/gi) || []).length
+      const formCount = (body.match(/<form/gi) || []).length
+      const buttonCount = (body.match(/<button/gi) || []).length
       
-      const interactivityScore = Math.min(interactiveElements * 0.2, 0.5)
-      const patternScore = Math.min(patternMatches * 0.1, 0.8)
-      const scriptDensity = scriptCount > 10 ? 0.2 : 0
-      const linkDensity = linkCount > 50 ? 0.1 : 0
+      const textEntropy = this.calculateStringEntropy(allText)
+      const uniqueWords = new Set(allText.split(/\s+/)).size
+      const avgWordLength = allText.split(/\s+/).reduce((sum, word) => sum + word.length, 0) / allText.split(/\s+/).length
       
-      const totalScore = interactivityScore + patternScore + scriptDensity + linkDensity
+      const interactivityScore = Math.min((interactiveElements + formCount + buttonCount) * 0.1, 0.6)
+      const scriptDensity = scriptCount > 15 ? 0.3 : 0
+      const linkDensity = linkCount > 100 ? 0.2 : 0
+      const entropyScore = textEntropy > 4.5 ? 0.3 : 0
+      const vocabScore = uniqueWords > 500 ? 0.2 : 0
+      const wordLengthScore = avgWordLength < 4 ? 0.2 : 0
       
-      console.log(`Content analysis for ${domain}: patterns=${patternMatches}, interactive=${interactiveElements}, scripts=${scriptCount}, links=${linkCount}, score=${totalScore}`)
+      const totalScore = interactivityScore + scriptDensity + linkDensity + entropyScore + vocabScore + wordLengthScore
       
-      return totalScore > 0.4
+      console.log(`Behavioral analysis for ${domain}: interactive=${interactiveElements}, forms=${formCount}, buttons=${buttonCount}, scripts=${scriptCount}, links=${linkCount}, entropy=${textEntropy.toFixed(2)}, words=${uniqueWords}, avgWordLen=${avgWordLength.toFixed(1)}, score=${totalScore}`)
+      
+      return totalScore > 0.5
     } catch (error) {
       return false
     }
   }
 
   analyzeDomainName(domain: string): number {
-    const suspiciousPatterns = [
-      /\d+/g,
-      /[a-z]{15,}/,
-      /[^a-zA-Z0-9.-]/,
-      /(temp|test|proxy|vpn|tunnel|hide|anonymous|fake|mock|dummy|notsaying)/i,
-      /(xyz|tk|ml|ga|cf|top|click|download|stream|watch|free|online|site|web)/i,
-      /^[a-z]+\d+[a-z]+$/i,
-      /\.{2,}/,
-      /(games|play|fun|unblocked|school|work|bypass|proxy)/i,
-      /(petezah|zah|peter|pete)/i,
-      /(github|gitlab|bitbucket)/i,
-      /(vercel|netlify|cloudflare|glitch)/i,
-    ]
-
     let score = 0
     
-    suspiciousPatterns.forEach(pattern => {
-      if (pattern.test(domain)) {
-        score += 0.3
-      }
-    })
+    const entropy = this.calculateStringEntropy(domain)
+    if (entropy > 3.5) {
+      score += 0.3
+    }
     
     if (domain.length > 25 || domain.length < 4) {
       score += 0.2
     }
     
-    const consonantClusters = domain.match(/[bcdfghjklmnpqrstvwxyz]{4,}/gi)
-    if (consonantClusters && consonantClusters.length > 0) {
+    const numbers = domain.match(/\d/g)
+    if (numbers && numbers.length > 2) {
+      score += 0.3
+    }
+    
+    const subdomainCount = domain.split('.').length - 2
+    if (subdomainCount > 2) {
       score += 0.2
     }
     
-    if (domain.includes('notsaying') || domain.includes('hidden') || domain.includes('secret')) {
-      score += 0.8
-    }
-    
-    if (domain.includes('games') && (domain.includes('unblocked') || domain.includes('school') || domain.includes('work'))) {
-      score += 0.9
+    const consonantRatio = (domain.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length / domain.length
+    if (consonantRatio > 0.7) {
+      score += 0.2
     }
     
     return Math.min(score, 1)
+  }
+
+  calculateStringEntropy(str: string): number {
+    const frequency: { [key: string]: number } = {}
+    for (const char of str) {
+      frequency[char] = (frequency[char] || 0) + 1
+    }
+    
+    let entropy = 0
+    for (const char in frequency) {
+      const probability = frequency[char] / str.length
+      entropy -= probability * Math.log2(probability)
+    }
+    
+    return entropy
   }
 
   calculateHeaderEntropy(headers: http.IncomingHttpHeaders): number {
