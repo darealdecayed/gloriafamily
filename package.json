@@ -1,14 +1,19 @@
 {
-  "name": "dusk-proxy-detection",
+  "name": "solstice-proxy-detection",
   "version": "1.0.0",
   "description": "Node.js API for detecting interception and MITM proxies",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "ts-node server.ts"
+    "dev": "ts-node src/server.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "ts-node scripts/seed.ts",
+    "setup": "bash scripts/setup.sh"
   },
   "dependencies": {
+    "@prisma/client": "^5.6.0",
     "express": "^4.18.2",
     "ws": "^8.14.2"
   },
@@ -16,7 +21,11 @@
     "@types/express": "^4.17.21",
     "@types/node": "^20.8.7",
     "@types/ws": "^8.5.8",
+    "prisma": "^5.6.0",
     "typescript": "^5.2.2",
     "ts-node": "^10.9.1"
+  },
+  "prisma": {
+    "seed": "ts-node scripts/seed.ts"
   }
 }

@@ -147,6 +147,54 @@ class ProxyDetector {
     }
   }
 
+  analyzeDomainName(domain: string): number {
+    const suspiciousPatterns = [
+      /\d+/g, // Numbers in domain
+      /[a-z]{15,}/, // Very long words
+      /[^a-zA-Z0-9.-]/, // Special characters
+      /(temp|test|proxy|vpn|tunnel|hide|anonymous|fake|mock|dummy|notsaying)/i, // Proxy-related words
+      /(xyz|tk|ml|ga|cf|top|click|download|stream|watch|free|online|site|web)/i, // Suspicious TLDs/keywords
+      /^[a-z]+\d+[a-z]+$/i, // Mixed letters and numbers pattern
+      /\.{2,}/, // Multiple dots
+      /(games|play|fun|unblocked|school|work|bypass|proxy)/i, // Gaming/unblocked indicators
+      /(petezah|zah|peter|pete)/i, // Specific proxy patterns
+      /(github|gitlab|bitbucket)/i, // Code hosting often used for proxy
+      /(vercel|netlify|cloudflare|glitch)/i, // Hosting platforms used for proxy
+    ];
+
+    let score = 0;
+    
+    // Check for suspicious patterns
+    suspiciousPatterns.forEach(pattern => {
+      if (pattern.test(domain)) {
+        score += 0.3;
+      }
+    });
+    
+    // Check domain length (very long or very short domains are suspicious)
+    if (domain.length > 25 || domain.length < 4) {
+      score += 0.2;
+    }
+    
+    // Check for random-looking character sequences
+    const consonantClusters = domain.match(/[bcdfghjklmnpqrstvwxyz]{4,}/gi);
+    if (consonantClusters && consonantClusters.length > 0) {
+      score += 0.2;
+    }
+    
+    // Check for obfuscation attempts
+    if (domain.includes('notsaying') || domain.includes('hidden') || domain.includes('secret')) {
+      score += 0.8; // High score for obvious obfuscation
+    }
+    
+    // Check for common proxy domain patterns
+    if (domain.includes('games') && (domain.includes('unblocked') || domain.includes('school') || domain.includes('work'))) {
+      score += 0.9; // Very high score for obvious gaming proxy
+    }
+    
+    return Math.min(score, 1);
+  }
+
   calculateHeaderEntropy(headers: http.IncomingHttpHeaders): number {
     const headerValues = Object.values(headers).filter(val => val !== undefined);
     const headerString = headerValues.join('');
@@ -242,8 +290,12 @@ class ProxyDetector {
     const websocketUpgrade = await this.testWebSocketUpgrade(domain);
     const isBareMux = await this.checkBareMux(domain);
     const isWispServer = await this.checkWispServers(domain);
+    const domainSuspicionScore = this.analyzeDomainName(domain);
     
     let anomalyScore = 0;
+    
+    // Add domain name analysis score (weighted heavily)
+    anomalyScore += domainSuspicionScore * 0.7;
     
     if (uniqueFingerprints > 1) {
       anomalyScore += uniqueFingerprints * 0.4;
@@ -273,7 +325,7 @@ class ProxyDetector {
       anomalyScore += 0.8;
     }
     
-    const proxyLikely = anomalyScore > 0.5;
+    const proxyLikely = anomalyScore > 0.3;
     
     return {
       domain,
@@ -293,7 +345,7 @@ const app = express();
 const detector = new ProxyDetector();
 const PORT = process.env.PORT || 3000;
 
-app.get('/v1/dusk/check/url=:domain', async (req: Request, res: Response) => {
+app.get('/v1/solstice/check/url=:domain', async (req: Request, res: Response) => {
   try {
     let domain = req.params.domain.replace(/"/g, '');
     
@@ -306,7 +358,14 @@ app.get('/v1/dusk/check/url=:domain', async (req: Request, res: Response) => {
     }
     
     const result = await detector.analyzeDomain(domain);
-    res.json(result);
+    
+    const response = {
+      site: domain,
+      status: result.proxyLikely ? "blocked" : "unblocked",
+      response: `${result.latencyStats.avg.toFixed(2)}ms`
+    };
+    
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: 'Analysis failed' });
   }
