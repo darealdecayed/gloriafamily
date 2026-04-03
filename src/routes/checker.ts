@@ -4,6 +4,6 @@ import { authenticate } from '../middleware/auth'
 
 const router = Router()
 
-router.get('/check/:encoded', authenticate, checkProxy)
+router.get('/check/:domain', authenticate, checkProxy)
 
 export default router
