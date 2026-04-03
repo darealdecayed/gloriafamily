@@ -1,0 +1,24 @@
+opensourcedtech.com {
+    reverse_proxy localhost:3000
+    encode gzip
+}
+
+axison.top {
+    reverse_proxy localhost:3000
+    encode gzip
+}
+
+axiseducation.one {
+    reverse_proxy localhost:3000
+    encode gzip
+}
+
+paukenschlag-blog.org {
+    reverse_proxy localhost:3000
+    encode gzip
+}
+
+solstice-germany.opensourcedtech.com {
+    reverse_proxy localhost:9010
+    encode gzip
+}

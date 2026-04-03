@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  solstice-api:
+    build: .
+    ports:
+      - "9010:9010"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - ./database:/app/database
