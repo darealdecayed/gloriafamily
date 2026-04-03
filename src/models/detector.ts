@@ -128,6 +128,60 @@ export class ProxyDetector {
     }
   }
 
+  async checkGameSiteContent(domain: string): Promise<boolean> {
+    try {
+      const response = await this.makeHTTPSRequest(domain)
+      const body = response.body.toLowerCase()
+      const title = body.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.toLowerCase() || ''
+      
+      const gameIndicators = [
+        'unblocked games',
+        'school games',
+        'games for school',
+        'play games',
+        'online games',
+        'flash games',
+        'html5 games',
+        'arcade games',
+        'multiplayer games',
+        'browser games',
+        'free games',
+        'game portal',
+        'gaming site',
+        'educational games',
+        'math games',
+        'learning games',
+        'fun games',
+        'kids games',
+        'student games',
+        'classroom games'
+      ]
+      
+      const gameKeywords = [
+        'game', 'games', 'play', 'player', 'gaming', 'arcade', 'puzzle',
+        'action', 'adventure', 'strategy', 'rpg', 'mmo', 'fps', 'multiplayer',
+        'singleplayer', 'campaign', 'level', 'score', 'highscore', 'achievement',
+        'leaderboard', 'tournament', 'competition', 'match', 'round', 'stage'
+      ]
+      
+      const gamePlatforms = [
+        'unity', 'webgl', 'flash', 'html5', 'canvas', 'webassembly', 'wasm',
+        'construct', 'godot', 'phaser', 'three.js', 'babylonjs', 'playcanvas'
+      ]
+      
+      const titleScore = gameIndicators.filter(indicator => title.includes(indicator)).length * 0.3
+      const contentScore = gameIndicators.filter(indicator => body.includes(indicator)).length * 0.2
+      const keywordScore = gameKeywords.filter(keyword => body.includes(keyword)).length * 0.05
+      const platformScore = gamePlatforms.filter(platform => body.includes(platform)).length * 0.15
+      
+      const totalScore = titleScore + contentScore + keywordScore + platformScore
+      
+      return totalScore > 0.4
+    } catch (error) {
+      return false
+    }
+  }
+
   analyzeDomainName(domain: string): number {
     const suspiciousPatterns = [
       /\d+/g,
@@ -266,6 +320,7 @@ export class ProxyDetector {
     const websocketUpgrade = await this.testWebSocketUpgrade(domain)
     const isBareMux = await this.checkBareMux(domain)
     const isWispServer = await this.checkWispServers(domain)
+    const isGameSite = await this.checkGameSiteContent(domain)
     const domainSuspicionScore = this.analyzeDomainName(domain)
     
     let anomalyScore = 0
@@ -298,6 +353,10 @@ export class ProxyDetector {
     
     if (isWispServer) {
       anomalyScore += 0.8
+    }
+    
+    if (isGameSite) {
+      anomalyScore += 0.7
     }
     
     const proxyLikely = anomalyScore > 0.3
