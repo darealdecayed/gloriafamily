@@ -17,9 +17,6 @@ export interface ProxyDetectionResult {
     gameContent: boolean;
     anomalyScore: number;
     proxyLikely: boolean;
-    category: string;
-    categoryConfidence: number;
-    categoryReasons: string[];
     error?: string;
 }
 //# sourceMappingURL=types.d.ts.map

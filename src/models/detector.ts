@@ -2,7 +2,6 @@ import * as tls from 'tls'
 import * as crypto from 'crypto'
 import https from 'https'
 import http from 'http'
-import { CategoryResult, Category, Categorizer } from './categorizer'
 import WebSocket from 'ws'
 import { LatencyStats, ProxyDetectionResult } from './types'
 
@@ -149,16 +148,25 @@ export class ProxyDetector {
       const uniqueWords = new Set(allText.split(/\s+/)).size
       const avgWordLength = allText.split(/\s+/).reduce((sum, word) => sum + word.length, 0) / allText.split(/\s+/).length
       
-      const interactivityScore = Math.min((interactiveElements + formCount + buttonCount) * 0.1, 0.6)
+      const domainEntropy = this.calculateStringEntropy(domain)
+      const subdomainCount = domain.split('.').length - 2
+      const numbers = domain.match(/\d/g)
+      const consonantRatio = (domain.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length / domain.length
+      
+      const interactiveScore = Math.min((interactiveElements + formCount + buttonCount) * 0.1, 0.6)
       const scriptDensity = scriptCount > 15 ? 0.3 : 0
       const linkDensity = linkCount > 100 ? 0.2 : 0
       const entropyScore = textEntropy > 4.5 ? 0.3 : 0
       const vocabScore = uniqueWords > 500 ? 0.2 : 0
       const wordLengthScore = avgWordLength < 4 ? 0.2 : 0
+      const domainComplexityScore = domainEntropy > 3.5 ? 0.2 : 0
+      const subdomainScore = subdomainCount > 2 ? 0.1 : 0
+      const numberScore = numbers && numbers.length > 2 ? 0.1 : 0
+      const consonantScore = consonantRatio > 0.7 ? 0.1 : 0
       
-      const totalScore = interactivityScore + scriptDensity + linkDensity + entropyScore + vocabScore + wordLengthScore
+      const totalScore = interactiveScore + scriptDensity + linkDensity + entropyScore + vocabScore + wordLengthScore + domainComplexityScore + subdomainScore + numberScore + consonantScore
       
-      console.log(`Behavioral analysis for ${domain}: interactive=${interactiveElements}, forms=${formCount}, buttons=${buttonCount}, scripts=${scriptCount}, links=${linkCount}, entropy=${textEntropy.toFixed(2)}, words=${uniqueWords}, avgWordLen=${avgWordLength.toFixed(1)}, score=${totalScore}`)
+      console.log(`Pure behavioral analysis for ${domain}: interactive=${interactiveElements}, forms=${formCount}, buttons=${buttonCount}, scripts=${scriptCount}, links=${linkCount}, entropy=${textEntropy.toFixed(2)}, words=${uniqueWords}, avgWordLen=${avgWordLength.toFixed(1)}, domainEntropy=${domainEntropy.toFixed(2)}, subdomains=${subdomainCount}, numbers=${numbers?.length || 0}, consonantRatio=${consonantRatio.toFixed(2)}, total=${totalScore.toFixed(1)}`)
       
       return totalScore > 0.5
     } catch (error) {
@@ -276,8 +284,6 @@ export class ProxyDetector {
       const websocketUpgrade = await this.testWebSocketUpgrade(domain)
       const gameContent = await this.checkGameSiteContent(domain)
       
-      const categoryResult = await Categorizer.categorizeDomain(domain, response.body)
-      
       const anomalyScore = (
         (tlsFingerprint.length > 100 ? 0.2 : 0) +
         (handshakeTime > 200 ? 0.15 : 0) +
@@ -304,14 +310,9 @@ export class ProxyDetector {
         websocketUpgrade,
         gameContent,
         anomalyScore,
-        proxyLikely,
-        category: categoryResult.category,
-        categoryConfidence: categoryResult.confidence,
-        categoryReasons: categoryResult.reasons
+        proxyLikely
       }
     } catch (error) {
-      const categoryResult = await Categorizer.categorizeDomain(domain)
-      
       return {
         domain,
         tlsFingerprint: '',
@@ -325,9 +326,6 @@ export class ProxyDetector {
         gameContent: false,
         anomalyScore: 0,
         proxyLikely: false,
-        category: categoryResult.category,
-        categoryConfidence: categoryResult.confidence,
-        categoryReasons: categoryResult.reasons,
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }

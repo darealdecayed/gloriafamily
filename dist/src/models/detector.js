@@ -40,7 +40,6 @@ exports.ProxyDetector = void 0;
 const tls = __importStar(require("tls"));
 const crypto = __importStar(require("crypto"));
 const https_1 = __importDefault(require("https"));
-const categorizer_1 = require("./categorizer");
 const ws_1 = __importDefault(require("ws"));
 class ProxyDetector {
     async getTLSFingerprint(domain) {
@@ -164,14 +163,22 @@ class ProxyDetector {
             const textEntropy = this.calculateStringEntropy(allText);
             const uniqueWords = new Set(allText.split(/\s+/)).size;
             const avgWordLength = allText.split(/\s+/).reduce((sum, word) => sum + word.length, 0) / allText.split(/\s+/).length;
-            const interactivityScore = Math.min((interactiveElements + formCount + buttonCount) * 0.1, 0.6);
+            const domainEntropy = this.calculateStringEntropy(domain);
+            const subdomainCount = domain.split('.').length - 2;
+            const numbers = domain.match(/\d/g);
+            const consonantRatio = (domain.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length / domain.length;
+            const interactiveScore = Math.min((interactiveElements + formCount + buttonCount) * 0.1, 0.6);
             const scriptDensity = scriptCount > 15 ? 0.3 : 0;
             const linkDensity = linkCount > 100 ? 0.2 : 0;
             const entropyScore = textEntropy > 4.5 ? 0.3 : 0;
             const vocabScore = uniqueWords > 500 ? 0.2 : 0;
             const wordLengthScore = avgWordLength < 4 ? 0.2 : 0;
-            const totalScore = interactivityScore + scriptDensity + linkDensity + entropyScore + vocabScore + wordLengthScore;
-            console.log(`Behavioral analysis for ${domain}: interactive=${interactiveElements}, forms=${formCount}, buttons=${buttonCount}, scripts=${scriptCount}, links=${linkCount}, entropy=${textEntropy.toFixed(2)}, words=${uniqueWords}, avgWordLen=${avgWordLength.toFixed(1)}, score=${totalScore}`);
+            const domainComplexityScore = domainEntropy > 3.5 ? 0.2 : 0;
+            const subdomainScore = subdomainCount > 2 ? 0.1 : 0;
+            const numberScore = numbers && numbers.length > 2 ? 0.1 : 0;
+            const consonantScore = consonantRatio > 0.7 ? 0.1 : 0;
+            const totalScore = interactiveScore + scriptDensity + linkDensity + entropyScore + vocabScore + wordLengthScore + domainComplexityScore + subdomainScore + numberScore + consonantScore;
+            console.log(`Pure behavioral analysis for ${domain}: interactive=${interactiveElements}, forms=${formCount}, buttons=${buttonCount}, scripts=${scriptCount}, links=${linkCount}, entropy=${textEntropy.toFixed(2)}, words=${uniqueWords}, avgWordLen=${avgWordLength.toFixed(1)}, domainEntropy=${domainEntropy.toFixed(2)}, subdomains=${subdomainCount}, numbers=${numbers?.length || 0}, consonantRatio=${consonantRatio.toFixed(2)}, total=${totalScore.toFixed(1)}`);
             return totalScore > 0.5;
         }
         catch (error) {
@@ -266,7 +273,6 @@ class ProxyDetector {
             const domainScore = this.analyzeDomainName(domain);
             const websocketUpgrade = await this.testWebSocketUpgrade(domain);
             const gameContent = await this.checkGameSiteContent(domain);
-            const categoryResult = await categorizer_1.Categorizer.categorizeDomain(domain, response.body);
             const anomalyScore = ((tlsFingerprint.length > 100 ? 0.2 : 0) +
                 (handshakeTime > 200 ? 0.15 : 0) +
                 (headerEntropy > 4.5 ? 0.15 : 0) +
@@ -289,14 +295,10 @@ class ProxyDetector {
                 websocketUpgrade,
                 gameContent,
                 anomalyScore,
-                proxyLikely,
-                category: categoryResult.category,
-                categoryConfidence: categoryResult.confidence,
-                categoryReasons: categoryResult.reasons
+                proxyLikely
             };
         }
         catch (error) {
-            const categoryResult = await categorizer_1.Categorizer.categorizeDomain(domain);
             return {
                 domain,
                 tlsFingerprint: '',
@@ -310,9 +312,6 @@ class ProxyDetector {
                 gameContent: false,
                 anomalyScore: 0,
                 proxyLikely: false,
-                category: categoryResult.category,
-                categoryConfidence: categoryResult.confidence,
-                categoryReasons: categoryResult.reasons,
                 error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
