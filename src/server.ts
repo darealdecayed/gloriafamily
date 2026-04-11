@@ -1,3 +1,6 @@
+import dotenv from 'dotenv'
+dotenv.config()
+
 import express, { Request } from 'express'
 import { config } from './config/env'
 import checkerRoutes from './routes/checker'

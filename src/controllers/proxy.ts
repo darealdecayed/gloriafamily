@@ -1,5 +1,6 @@
 import { Response } from 'express'
 import { ProxyDetector } from '../models/detector'
+import { Categorizer } from '../models/categorizer'
 
 export const checkProxy = async (req: any, res: Response) => {
   try {
@@ -18,12 +19,46 @@ export const checkProxy = async (req: any, res: Response) => {
       return res.status(400).json({ error: 'Invalid domain format' })
     }
     
+    const categorizer = new Categorizer()
+    const categoryResult = await categorizer.categorize(cleanDomain)
+
+    if (categoryResult.isBlocked) {
+      const elapsedTime = Date.now() - req.startTime
+      console.log(`Check logged: ${cleanDomain} - blocked`)
+
+      return res.status(403).json({
+        site: cleanDomain,
+        status: 'blocked',
+        category: categoryResult.category,
+        response: `${elapsedTime}ms`
+      })
+    }
+    
     const detector = new ProxyDetector()
-    const result = await detector.analyzeDomain(cleanDomain)
+    const result = await Promise.race([
+      detector.analyzeDomain(cleanDomain),
+      new Promise((_resolve, reject) => 
+        setTimeout(() => reject(new Error('Analysis timeout')), 5000)
+      )
+    ]).catch(() => ({
+      domain: cleanDomain,
+      proxyLikely: false,
+      tlsFingerprint: '',
+      handshakeTime: 0,
+      headerEntropy: 0,
+      headerVariance: 0,
+      wispCheck: false,
+      bareMuxCheck: false,
+      domainScore: 0,
+      websocketUpgrade: false,
+      gameContent: false,
+      anomalyScore: 0
+    }))
     
     const response = {
       site: cleanDomain,
-      status: result.proxyLikely ? "blocked" : "unblocked",
+      category: categoryResult.category,
+      status: (result as any).proxyLikely ? "blocked" : "unblocked",
       response: `${Date.now() - req.startTime}ms`
     }
 
@@ -31,6 +66,7 @@ export const checkProxy = async (req: any, res: Response) => {
     
     res.json(response)
   } catch (error) {
+    console.error('Error:', error)
     res.status(500).json({ error: 'Analysis failed' })
   }
 }

@@ -3,11 +3,14 @@ export interface CategoryResult {
     category: string;
     confidence: number;
     isBlocked: boolean;
-    source: 'api' | 'timeout';
+    source: 'cloudflare' | 'timeout' | 'dynamic';
 }
 export declare class Categorizer {
     categorize(domain: string): Promise<CategoryResult>;
-    private queryURLhaus;
+    private checkDynamicBlocklist;
+    private queryCloudflareRadar;
+    private checkDomainReputation;
+    private categorizeByReputation;
     static isBlockedCategory(category: string): boolean;
     static getBlockedCategories(): string[];
 }
